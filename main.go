@@ -20,7 +20,9 @@ func main() {
 	//fmt.Println(err)
 	//}
 
-	vms, err := VMADMList(&VMADMListInput{})
+	var v VM
+
+	vms, err := v.List(&ListInput{})
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -47,7 +49,7 @@ func runCommand(cmd *exec.Cmd) (*bytes.Buffer, error) {
 	return &stdout, nil
 }
 
-func VMADMGet(input *VMADMGetInput) (*VM, error) {
+func (V *VM) Get(input *GetInput) (*VM, error) {
 	cmd := exec.Command("vmadm", "get", input.UUID)
 	stdout, err := runCommand(cmd)
 	if err != nil {
@@ -64,11 +66,12 @@ func VMADMGet(input *VMADMGetInput) (*VM, error) {
 	return &vm, nil
 }
 
-type VMADMGetInput struct {
+type GetInput struct {
 	UUID string `json:"uuid"`
 }
 
-func VMADMList(input *VMADMListInput) ([]*VM, error) {
+// TODO Add Filtering
+func (v *VM) List(input *ListInput) ([]*VM, error) {
 	cmd := exec.Command("vmadm", "lookup", "-j")
 	stdout, err := runCommand(cmd)
 	if err != nil {
@@ -84,9 +87,7 @@ func VMADMList(input *VMADMListInput) ([]*VM, error) {
 	return vms, nil
 }
 
-// TODO Add Filtering
-type VMADMListInput struct {
-}
+type ListInput struct{}
 
 type VM struct {
 	Alias                      string                 `json:"alias", omitempty"`
