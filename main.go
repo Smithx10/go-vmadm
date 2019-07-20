@@ -16,13 +16,13 @@ type VM struct {
 	BillingID                  string            `json:"billing_id"`
 	BhyveExtraOpts             string            `json:"bhyve_extra_opts"`
 	Boot                       string            `json:"boot"`
-	BootTimestamp              time.RFC3339      `json:"boot_time_stamp"`
+	BootTimestamp              time.Time         `json:"boot_time_stamp"`
 	Bootrom                    string            `json:"bootrom"`
 	Brand                      string            `json:"brand"`
 	CPUCap                     int               `json:"cpu_cap"`
 	CPUShares                  int               `json:"cpu_shares"`
 	CPUType                    string            `json:"cpu_type"`
-	CreateTimestamp            time.RFC3339      `json:"create_timestamp"`
+	CreateTimestamp            time.Time         `json:"create_timestamp"`
 	ServerUUID                 string            `json:"server_uuid"`
 	CustomerMetadata           map[string]string `json:"customer_metadata"`
 	Datasets                   string            `json:"datasets"`
@@ -37,7 +37,7 @@ type VM struct {
 	FSAllowed                  string            `json:"fs_allowed"`
 	Hostname                   string            `json:"hostname"`
 	HVM                        bool              `json:"hvm"`
-	ImageUUID                  `json:"image_uuid"`
+	ImageUUID                  string            `json:"image_uuid"`
 	InternalMetadata           map[string]string `json:"internal_metadata"`
 	InternalMetadataNamespaces []string          `json:"internal_metadata_namespaces"`
 	IndestructibleDelegated    bool              `json:"indestructible_delegated"`
