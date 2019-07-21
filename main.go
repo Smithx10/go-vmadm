@@ -19,29 +19,30 @@ const (
 func main() {
 	var v VM
 
-	//vm, err := v.Create(&CreateInput{
-	//Alias:             "Test",
-	//Brand:             "joyent",
-	//ZFSIOPriority:     30,
-	//Quota:             20,
-	//ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
-	//MaxPhysicalMemory: 256,
-	//NICs: []NIC{
-	//{
-	//NICTag: "external",
-	//IPs: []string{
-	//"10.45.140.20/24",
-	//},
-	//Gateways: []string{
-	//"10.45.140.1",
-	//},
-	//Primary: true,
-	//},
-	//},
-	//})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
+	vm, err := v.Create(&CreateInput{
+		Alias:             "Test",
+		Brand:             "joyent",
+		DelegateDataset:   true,
+		ZFSIOPriority:     30,
+		Quota:             20,
+		ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
+		MaxPhysicalMemory: 256,
+		NICs: []NIC{
+			{
+				NICTag: "external",
+				IPs: []string{
+					"10.45.140.20/24",
+				},
+				Gateways: []string{
+					"10.45.140.1",
+				},
+				Primary: true,
+			},
+		},
+	})
+	if err != nil {
+		fmt.Println(vm, err)
+	}
 
 	//myvm, err := v.Get(&GetInput{
 	//UUID: vm.UUID,
@@ -61,36 +62,32 @@ func main() {
 			inst = v
 		}
 	}
-	err = v.Update(&UpdateInput{
-		UUID: inst.UUID,
-		//NICs: []NIC{
-		//{
-		//NICTag: "external",
-		//IPs: []string{
-		//"10.45.140.21/24",
-		//},
-		//UpdateOperation: "add",
-		//},
-		//{
-		//NICTag: "external",
-		//MAC:    inst.NICs[0].MAC,
-		//IPs: []string{
-		//"10.45.140.22/24",
-		//},
-		//UpdateOperation: "update",
-		//},
-		//},
-		Disks: []Disk{
-			{
-				Size:            40960,
-				UpdateOperation: "add",
-			},
-		},
-		Quota: 30,
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
+	fmt.Println(inst.Datasets, inst.ZFSFilesystem)
+
+	//err = v.Update(&UpdateInput{
+	//UUID: inst.UUID,
+	//NICs: []NIC{
+	//{
+	//NICTag: "external",
+	//IPs: []string{
+	//"10.45.140.21/24",
+	//},
+	//UpdateOperation: "add",
+	//},
+	//{
+	//NICTag: "external",
+	//MAC:    inst.NICs[0].MAC,
+	//IPs: []string{
+	//"10.45.140.22/24",
+	//},
+	//UpdateOperation: "update",
+	//},
+	//},
+	//Quota: 30,
+	//})
+	//if err != nil {
+	//fmt.Println(err)
+	//}
 
 	//err = v.Destroy(&DestroyInput{
 	//UUID: vm.UUID,
@@ -99,13 +96,13 @@ func main() {
 	//fmt.Println(err)
 	//}
 
-	updated, err := v.Get(&GetInput{
-		UUID: inst.UUID,
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Printf("%+v, %+v\n", updated.NICs, updated.Quota)
+	//updated, err := v.Get(&GetInput{
+	//UUID: inst.UUID,
+	//})
+	//if err != nil {
+	//fmt.Println(err)
+	//}
+	//fmt.Printf("%+v, %+v\n", updated.NICs, updated.Quota)
 
 }
 
@@ -311,10 +308,11 @@ func (v *VM) List(input *ListInput) ([]*VM, error) {
 type CreateInput struct {
 	UUID              string `json:"uuid,omitempty"`
 	Brand             string `json:"brand"`
-	ZFSIOPriority     int    `json:"zfs_io_priority, omitempty"`
-	Quota             int    `json:"quota, omitempty"`
+	DelegateDataset   bool   `json:"delegate_dataset,omitempty"`
+	ZFSIOPriority     int    `json:"zfs_io_priority,omitempty"`
+	Quota             int    `json:"quota,omitempty"`
 	ImageUUID         string `json:"image_uuid"`
-	MaxPhysicalMemory int    `json:"max_physical_memory, omitempty"`
+	MaxPhysicalMemory int    `json:"max_physical_memory,omitempty"`
 	Alias             string `json:"alias,ompitempty"`
 	NICs              []NIC  `json:"nics,omitempty"`
 }
@@ -420,14 +418,15 @@ type VM struct {
 	ZFSRootCompression         string                 `json:"zfs_root_compression,omitempty"`         // v:ANY, l:yes, c:yes, u:yes
 	ZFSRootRecSize             int                    `json:"zfs_root_recsize,omitempty"`             // v:ANY, l:yes, c:yes, u:yes
 	ZFSSnapshotLimit           int                    `json:"zfs_snapshot_limit,omitempty"`           // v:ANY, l:yes, c:yes, u:yes
-	ZLogMaxSize                int                    `json:"zlog_max_size,omitempty"`                // v:ANY, l:yes, c:yes, u:yes
-	ZLogMode                   string                 `json:"zlog_mode,omitempty"`                    // v:ANY, l:yes, c:yes, u:yes
-	ZoneState                  string                 `json:"zone_state,omitempty"`                   // v:ANY, l:yes, c:yes, u:yes
-	ZonePath                   string                 `json:"zonepath,omitempty"`                     // v:ANY, l:yes, c:yes, u:yes
-	ZoneName                   string                 `json:"zonename,omitempty"`                     // v:ANY, l:yes, c:yes, u:yes
-	ZoneDID                    int                    `json:"zonedid,omitempty"`                      // v:ANY, l:yes, c:yes, u:yes
-	ZoneID                     int                    `json:"zoneid,omitempty"`                       // v:ANY, l:yes, c:yes, u:yes
-	ZPool                      string                 `json:"zpool,omitempty"`                        // v:ANY, l:yes, c:yes, u:yes
+	ZFSFilesystem              string                 `json:"zfs_filesystem,omitempty"`
+	ZLogMaxSize                int                    `json:"zlog_max_size,omitempty"` // v:ANY, l:yes, c:yes, u:yes
+	ZLogMode                   string                 `json:"zlog_mode,omitempty"`     // v:ANY, l:yes, c:yes, u:yes
+	ZoneState                  string                 `json:"zone_state,omitempty"`    // v:ANY, l:yes, c:yes, u:yes
+	ZonePath                   string                 `json:"zonepath,omitempty"`      // v:ANY, l:yes, c:yes, u:yes
+	ZoneName                   string                 `json:"zonename,omitempty"`      // v:ANY, l:yes, c:yes, u:yes
+	ZoneDID                    int                    `json:"zonedid,omitempty"`       // v:ANY, l:yes, c:yes, u:yes
+	ZoneID                     int                    `json:"zoneid,omitempty"`        // v:ANY, l:yes, c:yes, u:yes
+	ZPool                      string                 `json:"zpool,omitempty"`         // v:ANY, l:yes, c:yes, u:yes
 }
 
 type Disk struct {
