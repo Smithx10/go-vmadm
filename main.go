@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"strings"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -16,25 +19,34 @@ const (
 func main() {
 	var v VM
 
-	//vm, err := v.Get(&GetInput{
-	//UUID: "e9633c00-bc80-4160-98cf-96b33690b1b7",
-	//})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
-	//fmt.Println(vm, err)
+	myvm, err := v.Get(&GetInput{
+		UUID: "e9633c00-bc80-4160-98cf-96b33690b1b7",
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(myvm.Alias)
 
-	//vms, err := v.List(&ListInput{})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
-	//fmt.Println(vms, err)
+	vms, err := v.List(&ListInput{})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(vms)
+	for _, v := range vms {
+		fmt.Println(v.Alias)
+	}
 
-	v.Create(&CreateInput{
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	vm, err := v.Create(&CreateInput{
 		Alias:             "Test",
 		Brand:             "joyent",
 		ZFSIOPriority:     30,
 		Quota:             20,
+		UUID:              uuid.String(),
 		ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
 		MaxPhysicalMemory: 256,
 		NICs: []NIC{
@@ -50,14 +62,21 @@ func main() {
 			},
 		},
 	})
+	fmt.Println(vm, err)
 }
 
-func wrapError(exitCode error, errorMsg bytes.Buffer) error {
-	return fmt.Errorf("ExitCode: %s, ErrorMessage: %s", exitCode, string(errorMsg.Bytes()))
+func wrapError(exitCode int, errorMsg bytes.Buffer) error {
+	var exitCodeString string
+	switch exitCode {
+	case 1:
+		exitCodeString = "An Error Occured"
+	case 2:
+		exitCodeString = "Invalid Usage"
+	}
+	return fmt.Errorf("%s: %s", exitCodeString, strings.Split(string(errorMsg.Bytes()), "\n")[0])
 }
 
-func runCommand(cmd *exec.Cmd, stdinpipe []byte) ([]byte, error) {
-
+func runCommand(cmd *exec.Cmd, stdinpipe []byte) ([]byte, []byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -65,7 +84,7 @@ func runCommand(cmd *exec.Cmd, stdinpipe []byte) ([]byte, error) {
 	if stdinpipe != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		stdin.Write(stdinpipe)
 	}
@@ -73,35 +92,44 @@ func runCommand(cmd *exec.Cmd, stdinpipe []byte) ([]byte, error) {
 	if err := cmd.Start(); nil != err {
 		log.Fatalf("Error starting program: %s, %s", cmd.Path, err.Error())
 	}
-	cmd.Wait()
+	if err := cmd.Wait(); nil != err {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return nil, nil, wrapError(exitError.ExitCode(), stderr)
+		}
+	}
 
-	fmt.Println("err", string(stderr.Bytes()))
-	fmt.Println("out", string(stdout.Bytes()))
-
-	return stdout.Bytes(), nil
+	return stdout.Bytes(), stderr.Bytes(), nil
 }
 
-func (V *VM) Create(input *CreateInput) (*VM, error) {
+func (v *VM) Create(input *CreateInput) (*VM, error) {
 	vm, err := json.Marshal(input)
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	cmd := exec.Command("vmadm", "create")
-
-	stdout, err := runCommand(cmd, vm)
-	fmt.Println("rawr", stdout, err)
-
-	return nil, nil
-}
-
-func (V *VM) Get(input *GetInput) (*VM, error) {
-	cmd := exec.Command("vmadm", "get", input.UUID)
-	stdout, err := runCommand(cmd, nil)
+	_, _, err = runCommand(cmd, vm)
 	if err != nil {
 		return nil, err
 	}
 
+	created, err := v.Get(&GetInput{
+		UUID: input.UUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+func (v *VM) Get(input *GetInput) (*VM, error) {
+	cmd := exec.Command("vmadm", "get", input.UUID)
+	stdout, stderr, err := runCommand(cmd, nil)
+	if err != nil {
+		fmt.Println(stderr)
+
+		return nil, err
+	}
 	var vm VM
 	err = json.Unmarshal(stdout, &vm)
 	if err != nil {
@@ -114,11 +142,11 @@ func (V *VM) Get(input *GetInput) (*VM, error) {
 // TODO Add Filtering
 func (v *VM) List(input *ListInput) ([]*VM, error) {
 	cmd := exec.Command("vmadm", "lookup", "-j")
-	stdout, err := runCommand(cmd, nil)
+	stdout, stderr, err := runCommand(cmd, nil)
 	if err != nil {
+		fmt.Println(stderr)
 		return nil, err
 	}
-
 	var vms []*VM
 	err = json.Unmarshal(stdout, &vms)
 	if err != nil {
@@ -129,12 +157,13 @@ func (v *VM) List(input *ListInput) ([]*VM, error) {
 }
 
 type CreateInput struct {
+	UUID              string `json:"uuid, omitempty"`
 	Brand             string `json:"brand"`
-	ZFSIOPriority     int    `json:"zfs_io_priority"`
-	Quota             int    `json:"quota"`
+	ZFSIOPriority     int    `json:"zfs_io_priority, omitempty"`
+	Quota             int    `json:"quota, omitempty"`
 	ImageUUID         string `json:"image_uuid"`
-	MaxPhysicalMemory int    `json:"max_physical_memory"`
-	Alias             string `json:"alias"`
+	MaxPhysicalMemory int    `json:"max_physical_memory, omitempty"`
+	Alias             string `json:"alias,ompitempty"`
 	NICs              []NIC  `json:"nics, omitempty"`
 }
 
