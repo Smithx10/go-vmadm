@@ -19,61 +19,81 @@ const (
 func main() {
 	var v VM
 
-	vm, err := v.Create(&CreateInput{
-		Alias:             "Test",
-		Brand:             "joyent",
-		ZFSIOPriority:     30,
-		Quota:             20,
-		ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
-		MaxPhysicalMemory: 256,
-		NICs: []NIC{
-			{
-				NICTag: "external",
-				IPs: []string{
-					"10.45.140.20/24",
-				},
-				Gateways: []string{
-					"10.45.140.1",
-				},
-				Primary: true,
-			},
-		},
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
+	//vm, err := v.Create(&CreateInput{
+	//Alias:             "Test",
+	//Brand:             "joyent",
+	//ZFSIOPriority:     30,
+	//Quota:             20,
+	//ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
+	//MaxPhysicalMemory: 256,
+	//NICs: []NIC{
+	//{
+	//NICTag: "external",
+	//IPs: []string{
+	//"10.45.140.20/24",
+	//},
+	//Gateways: []string{
+	//"10.45.140.1",
+	//},
+	//Primary: true,
+	//},
+	//},
+	//})
+	//if err != nil {
+	//fmt.Println(err)
+	//}
 
-	myvm, err := v.Get(&GetInput{
-		UUID: vm.UUID,
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(myvm.Alias)
+	//myvm, err := v.Get(&GetInput{
+	//UUID: vm.UUID,
+	//})
+	//if err != nil {
+	//fmt.Println(err)
+	//}
+	//fmt.Println(myvm.Alias)
 
+	var inst *VM
 	vms, err := v.List(&ListInput{})
 	if err != nil {
 		fmt.Println(err)
 	}
 	for _, v := range vms {
-		if v.UUID == vm.UUID {
-			fmt.Println(v.Alias)
+		if v.Alias == "Test" {
+			inst = v
 		}
 	}
-
-	err = v.Destroy(&DestroyInput{
-		UUID: vm.UUID,
+	err = v.Update(&UpdateInput{
+		UUID: inst.UUID,
+		NICs: []NIC{
+			{
+				NICTag: "external",
+				MAC:    inst.NICs[0].MAC,
+				IPs: []string{
+					"10.45.140.20/24",
+				},
+				UpdateOperation: "update",
+			},
+		},
+		Quota: 30,
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	_, err = v.Get(&GetInput{
-		UUID: vm.UUID,
+	//err = v.Destroy(&DestroyInput{
+	//UUID: vm.UUID,
+	//})
+	//if err != nil {
+	//fmt.Println(err)
+	//}
+
+	updated, err := v.Get(&GetInput{
+		UUID: inst.UUID,
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
+	fmt.Printf("%+v, %+v\n", updated.NICs, updated.Quota)
+
 }
 
 func wrapError(exitCode int, errorMsg bytes.Buffer) error {
@@ -158,6 +178,65 @@ func (v *VM) Get(input *GetInput) (*VM, error) {
 	return &vm, nil
 }
 
+func (v *VM) Update(input *UpdateInput) error {
+	fmt.Println(input)
+	updateMap := make(map[string]interface{})
+
+	update, err := json.Marshal(input)
+	err = json.Unmarshal(update, &updateMap)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// See if we are dealing with a Special Object
+	if input.NICs != nil {
+		var nicsToAdd []NIC
+		var nicsToUpdate []NIC
+		var nicsToRemove []NIC
+
+		for _, v := range input.NICs {
+			switch v.UpdateOperation {
+			case "add":
+				nicsToAdd = append(nicsToAdd, v)
+				break
+			case "update":
+				nicsToUpdate = append(nicsToUpdate, v)
+				break
+			case "remove":
+				nicsToRemove = append(nicsToRemove, v)
+				break
+			default:
+				return fmt.Errorf("\"NIC.UpdateOperation\" must be set to \"add\", \"update\", or \"remove\"")
+			}
+		}
+
+		if len(nicsToAdd) > 0 {
+			updateMap["add_nics"] = nicsToUpdate
+		}
+		if len(nicsToUpdate) > 0 {
+			updateMap["update_nics"] = nicsToUpdate
+		}
+		if len(nicsToRemove) > 0 {
+			updateMap["remove_nics"] = nicsToUpdate
+		}
+	}
+
+	updateJSON, err := json.Marshal(updateMap)
+	fmt.Println(string(updateJSON))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	cmd := exec.Command("vmadm", "update", input.UUID)
+	stdout, stderr, err := runCommand(cmd, updateJSON)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(stdout), string(stderr))
+
+	return nil
+}
+
 func (v *VM) Destroy(input *DestroyInput) error {
 	cmd := exec.Command("vmadm", "destroy", input.UUID)
 	_, _, err := runCommand(cmd, nil)
@@ -186,18 +265,24 @@ func (v *VM) List(input *ListInput) ([]*VM, error) {
 }
 
 type CreateInput struct {
-	UUID              string `json:"uuid, omitempty"`
+	UUID              string `json:"uuid,omitempty"`
 	Brand             string `json:"brand"`
 	ZFSIOPriority     int    `json:"zfs_io_priority, omitempty"`
 	Quota             int    `json:"quota, omitempty"`
 	ImageUUID         string `json:"image_uuid"`
 	MaxPhysicalMemory int    `json:"max_physical_memory, omitempty"`
 	Alias             string `json:"alias,ompitempty"`
-	NICs              []NIC  `json:"nics, omitempty"`
+	NICs              []NIC  `json:"nics,omitempty"`
 }
 
 type GetInput struct {
 	UUID string `json:"uuid"`
+}
+
+type UpdateInput struct {
+	UUID  string `json:"uuid"`
+	NICs  []NIC  `json:"nics,omitempty"`
+	Quota int    `json:"quota,omitempty"`
 }
 
 type DestroyInput struct {
@@ -348,4 +433,5 @@ type NIC struct {
 	VLANIDs                int      `json:"vlan_ids,omitempty"`                 // v: ANY, l: yes, c: yes, u: yes
 	VRRPPrimaryIP          string   `json:"vrrp_primary_ip,omitempty"`          // v: ANY, l: yes, c: yes, u: yes
 	VRRPVRID               int      `json:"vrrp_vrid,omitempty"`                // v: ANY, l: yes, c: yes, u: yes
+	UpdateOperation        string   `json:"update_operation,omitempty"`         // Used During Update to Specify our intent. pv:"add","update","remove"
 }
