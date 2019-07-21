@@ -19,34 +19,11 @@ const (
 func main() {
 	var v VM
 
-	myvm, err := v.Get(&GetInput{
-		UUID: "e9633c00-bc80-4160-98cf-96b33690b1b7",
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(myvm.Alias)
-
-	vms, err := v.List(&ListInput{})
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(vms)
-	for _, v := range vms {
-		fmt.Println(v.Alias)
-	}
-
-	uuid, err := uuid.NewV4()
-	if err != nil {
-		fmt.Println(err)
-	}
-
 	vm, err := v.Create(&CreateInput{
 		Alias:             "Test",
 		Brand:             "joyent",
 		ZFSIOPriority:     30,
 		Quota:             20,
-		UUID:              uuid.String(),
 		ImageUUID:         "c2c31b00-1d60-11e9-9a77-ff9f06554b0f",
 		MaxPhysicalMemory: 256,
 		NICs: []NIC{
@@ -62,7 +39,41 @@ func main() {
 			},
 		},
 	})
-	fmt.Println(vm, err)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myvm, err := v.Get(&GetInput{
+		UUID: vm.UUID,
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(myvm.Alias)
+
+	vms, err := v.List(&ListInput{})
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, v := range vms {
+		if v.UUID == vm.UUID {
+			fmt.Println(v.Alias)
+		}
+	}
+
+	err = v.Destroy(&DestroyInput{
+		UUID: vm.UUID,
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	_, err = v.Get(&GetInput{
+		UUID: vm.UUID,
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func wrapError(exitCode int, errorMsg bytes.Buffer) error {
@@ -102,6 +113,14 @@ func runCommand(cmd *exec.Cmd, stdinpipe []byte) ([]byte, []byte, error) {
 }
 
 func (v *VM) Create(input *CreateInput) (*VM, error) {
+	// Populate a UUID if caller doesn't give one.
+	if input.UUID == "" {
+		uuid, err := uuid.NewV4()
+		if err != nil {
+		}
+		input.UUID = uuid.String()
+	}
+
 	vm, err := json.Marshal(input)
 	if err != nil {
 		fmt.Println(err)
@@ -139,6 +158,16 @@ func (v *VM) Get(input *GetInput) (*VM, error) {
 	return &vm, nil
 }
 
+func (v *VM) Destroy(input *DestroyInput) error {
+	cmd := exec.Command("vmadm", "destroy", input.UUID)
+	_, _, err := runCommand(cmd, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // TODO Add Filtering
 func (v *VM) List(input *ListInput) ([]*VM, error) {
 	cmd := exec.Command("vmadm", "lookup", "-j")
@@ -168,6 +197,10 @@ type CreateInput struct {
 }
 
 type GetInput struct {
+	UUID string `json:"uuid"`
+}
+
+type DestroyInput struct {
 	UUID string `json:"uuid"`
 }
 
