@@ -63,14 +63,27 @@ func main() {
 	}
 	err = v.Update(&UpdateInput{
 		UUID: inst.UUID,
-		NICs: []NIC{
+		//NICs: []NIC{
+		//{
+		//NICTag: "external",
+		//IPs: []string{
+		//"10.45.140.21/24",
+		//},
+		//UpdateOperation: "add",
+		//},
+		//{
+		//NICTag: "external",
+		//MAC:    inst.NICs[0].MAC,
+		//IPs: []string{
+		//"10.45.140.22/24",
+		//},
+		//UpdateOperation: "update",
+		//},
+		//},
+		Disks: []Disk{
 			{
-				NICTag: "external",
-				MAC:    inst.NICs[0].MAC,
-				IPs: []string{
-					"10.45.140.20/24",
-				},
-				UpdateOperation: "update",
+				Size:            40960,
+				UpdateOperation: "add",
 			},
 		},
 		Quota: 30,
@@ -211,13 +224,44 @@ func (v *VM) Update(input *UpdateInput) error {
 		}
 
 		if len(nicsToAdd) > 0 {
-			updateMap["add_nics"] = nicsToUpdate
+			updateMap["add_nics"] = nicsToAdd
 		}
 		if len(nicsToUpdate) > 0 {
 			updateMap["update_nics"] = nicsToUpdate
 		}
 		if len(nicsToRemove) > 0 {
-			updateMap["remove_nics"] = nicsToUpdate
+			updateMap["remove_nics"] = nicsToRemove
+		}
+	}
+	if input.Disks != nil {
+		var disksToAdd []Disk
+		var disksToUpdate []Disk
+		var disksToRemove []Disk
+
+		for _, v := range input.Disks {
+			switch v.UpdateOperation {
+			case "add":
+				disksToAdd = append(disksToAdd, v)
+				break
+			case "update":
+				disksToUpdate = append(disksToUpdate, v)
+				break
+			case "remove":
+				disksToRemove = append(disksToRemove, v)
+				break
+			default:
+				return fmt.Errorf("\"Disk.UpdateOperation\" must be set to \"add\", \"update\", or \"remove\"")
+			}
+		}
+
+		if len(disksToAdd) > 0 {
+			updateMap["add_disks"] = disksToAdd
+		}
+		if len(disksToUpdate) > 0 {
+			updateMap["update_disks"] = disksToUpdate
+		}
+		if len(disksToRemove) > 0 {
+			updateMap["remove_disks"] = disksToRemove
 		}
 	}
 
@@ -281,6 +325,7 @@ type GetInput struct {
 
 type UpdateInput struct {
 	UUID  string `json:"uuid"`
+	Disks []Disk `json:"disks,omitempty"`
 	NICs  []NIC  `json:"nics,omitempty"`
 	Quota int    `json:"quota,omitempty"`
 }
@@ -386,19 +431,20 @@ type VM struct {
 }
 
 type Disk struct {
-	BlockSize      int    `json:"block_size,omitempty"`     // v: ANY, l: yes, c: yes, u: yes
-	Boot           bool   `json:"boot,omitempty"`           // v: ANY, l: yes, c: yes, u: yes
-	Compression    string `json:"compression,omitempty"`    // v: ANY, l: yes, c: yes, u: yes
-	NoCreate       bool   `json:"noc,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
-	ImageName      string `json:"image_name,omitempty"`     // v: ANY, l: yes, c: yes, u: yes
-	ImageSize      int    `json:"image_size,omitempty"`     // v: ANY, l: yes, c: yes, u: yes
-	ImageUUID      string `json:"image_uuid,omitempty"`     // v: ANY, l: yes, c: yes, u: yes
-	PCISlot        string `json:"pci_slot,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
-	RefReservation string `json:"refreservation,omitempty"` // v: ANY, l: yes, c: yes, u: yes
-	Size           int    `json:"size,omitempty"`           // v: ANY, l: yes, c: yes, u: yes
-	Media          string `json:"media,omitempty"`          // v: ANY, l: yes, c: yes, u: yes
-	Model          string `json:"model,omitempty"`          // v: ANY, l: yes, c: yes, u: yes
-	ZPool          string `json:"zpool,omitempty"`          // v: ANY, l: yes, c: yes, u: yes
+	BlockSize       int    `json:"block_size,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
+	Boot            bool   `json:"boot,omitempty"`             // v: ANY, l: yes, c: yes, u: yes
+	Compression     string `json:"compression,omitempty"`      // v: ANY, l: yes, c: yes, u: yes
+	NoCreate        bool   `json:"noc,omitempty"`              // v: ANY, l: yes, c: yes, u: yes
+	ImageName       string `json:"image_name,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
+	ImageSize       int    `json:"image_size,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
+	ImageUUID       string `json:"image_uuid,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
+	PCISlot         string `json:"pci_slot,omitempty"`         // v: ANY, l: yes, c: yes, u: yes
+	RefReservation  string `json:"refreservation,omitempty"`   // v: ANY, l: yes, c: yes, u: yes
+	Size            int    `json:"size,omitempty"`             // v: ANY, l: yes, c: yes, u: yes
+	Media           string `json:"media,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
+	Model           string `json:"model,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
+	ZPool           string `json:"zpool,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
+	UpdateOperation string `json:"update_operation,omitempty"` // Used During Update to Specify our intent. pv:"add","update","remove"
 }
 
 type FileSystem struct {
