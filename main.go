@@ -412,46 +412,47 @@ type VM struct {
 	VNCPassword                string                 `json:"vnc_password,omitempty"`                 // v:KVM, l:no, c:yes, u:yes, d:"unset"
 	VNCPort                    int                    `json:"vnc_port,omitempty"`                     // v:HVM, l:no, c:yes, u:yes, d:0
 	ZFSDataCompression         string                 `json:"zfs_data_compression,omitempty"`         // v:OS, l:yes, c:yes, u:yes, d:off, pv:"on","off","gzip",gzip-N","lz4","lzjb,"zle"
-	ZFSDataRecSize             int                    `json:"zfs_data_recsize,omitempty"`             // v:ANY, l:no, c:yes, u:yes
-	ZFSFilesystemLimit         int                    `json:"zfs_filesystem_limit,omitempty"`         // v:ANY, l:yes, c:yes, u:yes
-	ZFSIOPriority              int                    `json:"zfs_io_priority,omitempty"`              // v:ANY, l:yes, c:yes, u:yes
-	ZFSRootCompression         string                 `json:"zfs_root_compression,omitempty"`         // v:ANY, l:yes, c:yes, u:yes
-	ZFSRootRecSize             int                    `json:"zfs_root_recsize,omitempty"`             // v:ANY, l:yes, c:yes, u:yes
-	ZFSSnapshotLimit           int                    `json:"zfs_snapshot_limit,omitempty"`           // v:ANY, l:yes, c:yes, u:yes
-	ZFSFilesystem              string                 `json:"zfs_filesystem,omitempty"`
-	ZLogMaxSize                int                    `json:"zlog_max_size,omitempty"` // v:ANY, l:yes, c:yes, u:yes
-	ZLogMode                   string                 `json:"zlog_mode,omitempty"`     // v:ANY, l:yes, c:yes, u:yes
-	ZoneState                  string                 `json:"zone_state,omitempty"`    // v:ANY, l:yes, c:yes, u:yes
-	ZonePath                   string                 `json:"zonepath,omitempty"`      // v:ANY, l:yes, c:yes, u:yes
-	ZoneName                   string                 `json:"zonename,omitempty"`      // v:ANY, l:yes, c:yes, u:yes
-	ZoneDID                    int                    `json:"zonedid,omitempty"`       // v:ANY, l:yes, c:yes, u:yes
-	ZoneID                     int                    `json:"zoneid,omitempty"`        // v:ANY, l:yes, c:yes, u:yes
-	ZPool                      string                 `json:"zpool,omitempty"`         // v:ANY, l:yes, c:yes, u:yes
+	ZFSDataRecSize             int                    `json:"zfs_data_recsize,omitempty"`             // v:ANY, l:no, c:yes, u:yes, d:131072(128k)
+	ZFSFilesystemLimit         int                    `json:"zfs_filesystem_limit,omitempty"`         // v:ANY, l:no, c:yes, u:yes, d:none(no limit)
+	ZFSIOPriority              int                    `json:"zfs_io_priority,omitempty"`              // v:ANY, l:yes, c:yes, u:yes(live), d:100
+	ZFSRootCompression         string                 `json:"zfs_root_compression,omitempty"`         // v:OS, l:no, c:yes, u:yes, d:off
+	ZFSRootRecSize             int                    `json:"zfs_root_recsize,omitempty"`             // v:OS, l:no, c:yes, u:yes, d:131072(128k)
+	ZFSSnapshotLimit           int                    `json:"zfs_snapshot_limit,omitempty"`           // v:OS, l:no, c:yes, u:yes, d:none(no limit)
+	ZFSFilesystem              string                 `json:"zfs_filesystem,omitempty"` // Not mentioned by vmadm manpage.
+	ZLogMaxSize                int                    `json:"zlog_max_size,omitempty"` // v:ANY, l:no, c:yes, u:yes, d:none(no rotation)
+	ZLogMode                   string                 `json:"zlog_mode,omitempty"`     // v:ANY, l:no, c:no, u:no 
+	ZoneState                  string                 `json:"zone_state,omitempty"`    // v:HVM, l:yes, c:no, u:no
+	ZonePath                   string                 `json:"zonepath,omitempty"`      // v:ANY, l:no, c:no, u:no
+	ZoneName                   string                 `json:"zonename,omitempty"`      // v:ANY, l:yes, c:yes(OS VMs), u:no, d:UUID
+	ZoneDID                    int                    `json:"zonedid,omitempty"`       // v:ANY, l:yes, c:no, u:no
+	ZoneID                     int                    `json:"zoneid,omitempty"`        // v:ANY, l:yes, c:no, u:no
+	ZPool                      string                 `json:"zpool,omitempty"`         // v:ANY, l:yes, c:yes, u:no, d:zones
 }
 
 type Disk struct {
-	BlockSize       int    `json:"block_size,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
-	Boot            bool   `json:"boot,omitempty"`             // v: ANY, l: yes, c: yes, u: yes
-	Compression     string `json:"compression,omitempty"`      // v: ANY, l: yes, c: yes, u: yes
-	NoCreate        bool   `json:"noc,omitempty"`              // v: ANY, l: yes, c: yes, u: yes
-	ImageName       string `json:"image_name,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
-	ImageSize       int    `json:"image_size,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
-	ImageUUID       string `json:"image_uuid,omitempty"`       // v: ANY, l: yes, c: yes, u: yes
-	PCISlot         string `json:"pci_slot,omitempty"`         // v: ANY, l: yes, c: yes, u: yes
-	RefReservation  string `json:"refreservation,omitempty"`   // v: ANY, l: yes, c: yes, u: yes
-	Size            int    `json:"size,omitempty"`             // v: ANY, l: yes, c: yes, u: yes
-	Media           string `json:"media,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
-	Model           string `json:"model,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
-	ZPool           string `json:"zpool,omitempty"`            // v: ANY, l: yes, c: yes, u: yes
+	BlockSize       int    `json:"block_size,omitempty"`       // v:HVM, l:no, c:yes, u:no, d:8192
+	Boot            bool   `json:"boot,omitempty"`             // v:HVM, l:yes, c:yes, u:yes, d:no
+	Compression     string `json:"compression,omitempty"`      // v:HVM, l:no, c:yes, u:yes, d:off, pv:"on,off,gzip,gzip-N,lz4,lzjb,zle"
+	NoCreate        bool   `json:"noc,omitempty"`              // v:HVM, l:no, c:yes, u:no, d:false
+	ImageName       string `json:"image_name,omitempty"`       // v:HVM, l:yes, c:yes, u:yes, d:no
+	ImageSize       int    `json:"image_size,omitempty"`       // v:HVM, l:yes, c:yes, u:yes, d:no
+	ImageUUID       string `json:"image_uuid,omitempty"`       // v:HVM, l:yes, c:yes, u:yes, d:no
+	PCISlot         string `json:"pci_slot,omitempty"`         // v:BHYVE, l:yes, c:yes, u:yes, d:no
+	RefReservation  string `json:"refreservation,omitempty"`   // v:HVM, l:no, c:yes, u:yes, d:size
+	Size            int    `json:"size,omitempty"`             // v:HVM, l:yes, c:yes, u:yes, d:no
+	Media           string `json:"media,omitempty"`            // v:HVM, l:yes, c:yes, u:yes, d:disk, pv:"disk","cdrom"
+	Model           string `json:"model,omitempty"`            // v:HVM, l:yes, c:yes, u:yes, d:disk_driver, pv:kvm:"virtio","ide","scsi",bhyve:"virtio","ahci"
+	ZPool           string `json:"zpool,omitempty"`            // v:HVM, l:yes, c:yes, u:yes, d:zones
 	UpdateOperation string `json:"update_operation,omitempty"` // Used During Update to Specify our intent. pv:"add","update","remove"
 }
 
 type FileSystem struct {
-	Type    string   `json:"type,omitempty"`    // v: ANY, l: yes, c: yes, u: yes
-	Source  string   `json:"source,omitempty"`  // v: ANY, l: yes, c: yes, u: yes
-	Target  string   `json:"target,omitempty"`  // v: ANY, l: yes, c: yes, u: yes
-	Raw     string   `json:"raw,omitempty"`     // v: ANY, l: yes, c: yes, u: yes
-	Options []string `json:"options,omitempty"` // v: ANY, l: yes, c: yes, u: yes
+	Type    string   `json:"type,omitempty"`    // v:OS, l:no, c:yes, u:no
+	Source  string   `json:"source,omitempty"`  // v:OS, l:no, c:yes, u:no
+	Target  string   `json:"target,omitempty"`  // v:OS, l:no, c:yes, u:no
+	Raw     string   `json:"raw,omitempty"`     // v:OS, l:no, c:yes, u:no
+	Options []string `json:"options,omitempty"` // v:OS, l:no, c:yes, u:no
+	UpdateOperation string `json:"update_operation,omitempty"` // Used During Update to Specify our intent. pv:"add","update","remove"
 }
 
 type NIC struct {
